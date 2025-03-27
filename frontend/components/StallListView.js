@@ -1,11 +1,11 @@
-// components/StallListView.js
+// components/StallListView.js with budget display
 import React from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
   FlatList, 
-  TouchableOpacity, 
+  TouchableOpacity,
   Image 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,75 @@ export default function StallListView({ stalls, onStallPress }) {
     const hour = now.getHours();
     // Assume most food stalls open 8am-9pm
     return hour >= 8 && hour < 21;
+  };
+
+  // Function to render price range in a user-friendly format
+  const renderPriceRange = (priceRange) => {
+    if (!priceRange || priceRange === 'Unknown') {
+      return (
+        <View style={styles.priceRangeContainer}>
+          <Text style={styles.priceText}>Price: Unknown</Text>
+        </View>
+      );
+    }
+
+    // For ranges like "5-10"
+    if (priceRange.includes('-')) {
+      return (
+        <View style={styles.priceRangeContainer}>
+          <Text style={styles.priceText}>Budget: ${priceRange}</Text>
+        </View>
+      );
+    }
+    
+    // For prices like "30+"
+    if (priceRange.includes('+')) {
+      return (
+        <View style={styles.priceRangeContainer}>
+          <Text style={styles.priceText}>Budget: ${priceRange}</Text>
+        </View>
+      );
+    }
+    
+    // Default case
+    return (
+      <View style={styles.priceRangeContainer}>
+        <Text style={styles.priceText}>Budget: ${priceRange}</Text>
+      </View>
+    );
+  };
+
+  // Render a price indicator with dollar signs
+  const renderPriceIndicator = (priceRange) => {
+    if (!priceRange || priceRange === 'Unknown') {
+      return null;
+    }
+
+    // Extract the average price from the range
+    let avgPrice = 0;
+    
+    if (priceRange.includes('-')) {
+      const [min, max] = priceRange.split('-').map(num => parseInt(num, 10));
+      avgPrice = (min + max) / 2;
+    } else if (priceRange.includes('+')) {
+      avgPrice = parseInt(priceRange.replace('+', ''), 10);
+    } else {
+      avgPrice = parseInt(priceRange, 10);
+    }
+    
+    // Determine dollar sign level
+    let dollarSigns = '';
+    if (avgPrice < 5) {
+      dollarSigns = '$';
+    } else if (avgPrice < 15) {
+      dollarSigns = '$$';
+    } else if (avgPrice < 25) {
+      dollarSigns = '$$$';
+    } else {
+      dollarSigns = '$$$$';
+    }
+    
+    return <Text style={styles.dollarSigns}>{dollarSigns}</Text>;
   };
 
   // Render empty state
@@ -49,7 +118,10 @@ export default function StallListView({ stalls, onStallPress }) {
       >
         <View style={styles.stallContent}>
           <View style={styles.stallInfo}>
-            <Text style={styles.stallName}>{item.name}</Text>
+            <View style={styles.nameContainer}>
+              <Text style={styles.stallName} numberOfLines={1}>{item.name}</Text>
+              {renderPriceIndicator(item.attributes?.price_range)}
+            </View>
             
             <View style={styles.cuisineRow}>
               {item.attributes?.cuisine_type && item.attributes.cuisine_type !== 'Unknown' && (
@@ -60,11 +132,7 @@ export default function StallListView({ stalls, onStallPress }) {
                 </View>
               )}
               
-              {item.attributes?.price_range && item.attributes.price_range !== 'Unknown' && (
-                <Text style={styles.priceText}>
-                  {item.attributes.price_range}
-                </Text>
-              )}
+              {renderPriceRange(item.attributes?.price_range)}
             </View>
             
             <View style={styles.detailRow}>
@@ -82,6 +150,16 @@ export default function StallListView({ stalls, onStallPress }) {
             <View style={styles.statusRow}>
               <View style={[styles.statusIndicator, open ? styles.openIndicator : styles.closedIndicator]} />
               <Text style={styles.statusText}>{open ? 'Open' : 'Closed'}</Text>
+              
+              {item.attributes?.dietary_requirements && item.attributes.dietary_requirements !== 'Unknown' && (
+                <View style={styles.dietaryContainer}>
+                  <Ionicons name="leaf-outline" size={14} color="#4CAF50" style={styles.dietaryIcon} />
+                  <Text style={styles.dietaryText} numberOfLines={1}>
+                    {item.attributes.dietary_requirements.split(',')[0].trim()}
+                    {item.attributes.dietary_requirements.includes(',') ? '...' : ''}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
           
@@ -128,10 +206,22 @@ const styles = StyleSheet.create({
   stallInfo: {
     flex: 1,
   },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
   stallName: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 5,
+    flex: 1,
+    marginRight: 5,
+  },
+  dollarSigns: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: 'bold',
   },
   cuisineRow: {
     flexDirection: 'row',
@@ -148,6 +238,10 @@ const styles = StyleSheet.create({
   cuisineText: {
     fontSize: 12,
     color: '#1976D2',
+  },
+  priceRangeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   priceText: {
     fontSize: 12,
@@ -186,6 +280,20 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     color: '#666',
+    marginRight: 10,
+  },
+  dietaryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 5,
+  },
+  dietaryIcon: {
+    marginRight: 3,
+  },
+  dietaryText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    maxWidth: 100,
   },
   hpbBadge: {
     justifyContent: 'flex-start',

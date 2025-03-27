@@ -1,4 +1,4 @@
-// screens/FilterScreen.js
+// FilterScreen.js with walking time estimates
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -6,13 +6,11 @@ import {
   Text, 
   TouchableOpacity, 
   ScrollView,
-  ActivityIndicator,
-  Switch, 
+  ActivityIndicator
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../config';
-
-import Slider from '@react-native-community/slider';
 
 export default function FilterScreen({ route, navigation }) {
   const { currentFilters, onFilterChange } = route.params;
@@ -60,6 +58,30 @@ export default function FilterScreen({ route, navigation }) {
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Calculate estimated walking time based on radius
+  const getEstimatedWalkingTime = (radiusKm) => {
+    // Average walking speed is around 5 km/h
+    // So to walk across the diameter (2 * radius) would take:
+    const walkingTimeHours = (2 * radiusKm) / 5;
+    const walkingTimeMinutes = Math.round(walkingTimeHours * 60);
+    
+    if (walkingTimeMinutes < 1) {
+      return "< 1 min";
+    } else if (walkingTimeMinutes === 1) {
+      return "1 min";
+    } else if (walkingTimeMinutes < 60) {
+      return `${walkingTimeMinutes} mins`;
+    } else {
+      const hours = Math.floor(walkingTimeMinutes / 60);
+      const mins = walkingTimeMinutes % 60;
+      if (mins === 0) {
+        return `${hours} hr`;
+      } else {
+        return `${hours} hr ${mins} mins`;
+      }
     }
   };
 
@@ -112,7 +134,18 @@ export default function FilterScreen({ route, navigation }) {
         {/* Search Radius Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Search Radius</Text>
-          <Text style={styles.radiusValue}>{radius.toFixed(1)} km</Text>
+          <View style={styles.radiusInfoContainer}>
+            <View style={styles.radiusValueContainer}>
+              <Text style={styles.radiusValue}>{radius.toFixed(1)} km</Text>
+              <Text style={styles.walkingTime}>
+                ≈ {getEstimatedWalkingTime(radius)} walking time
+              </Text>
+            </View>
+            <View style={styles.radiusIconContainer}>
+              <Ionicons name="walk" size={20} color="#666" />
+            </View>
+          </View>
+          
           <Slider
             style={styles.slider}
             minimumValue={0.5}
@@ -124,6 +157,20 @@ export default function FilterScreen({ route, navigation }) {
             maximumTrackTintColor="#d3d3d3"
             thumbTintColor="#2196F3"
           />
+          
+          <View style={styles.sliderLabels}>
+            <Text style={styles.sliderLabel}>0.5 km</Text>
+            <Text style={styles.sliderLabel}>5 km</Text>
+          </View>
+          
+          <View style={styles.walkingTimeHints}>
+            <Text style={styles.walkingTimeHint}>
+              {getEstimatedWalkingTime(0.5)}
+            </Text>
+            <Text style={styles.walkingTimeHint}>
+              {getEstimatedWalkingTime(5)}
+            </Text>
+          </View>
         </View>
         
         {/* Cuisine Type Section */}
@@ -171,7 +218,7 @@ export default function FilterScreen({ route, navigation }) {
                     priceRange === range && styles.selectedOptionText
                   ]}
                 >
-                  {range}
+                  ${range}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -268,6 +315,50 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
   },
+  radiusInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  radiusValueContainer: {
+    flex: 1,
+  },
+  radiusValue: {
+    fontSize: 16,
+    color: '#2196F3',
+    fontWeight: 'bold',
+  },
+  walkingTime: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  radiusIconContainer: {
+    paddingHorizontal: 10,
+  },
+  slider: {
+    height: 40,
+    marginBottom: 5,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+  },
+  sliderLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  walkingTimeHints: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+  },
+  walkingTimeHint: {
+    fontSize: 11,
+    color: '#888',
+  },
   optionList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -290,15 +381,6 @@ const styles = StyleSheet.create({
   },
   selectedOptionText: {
     color: 'white',
-  },
-  slider: {
-    height: 40,
-  },
-  radiusValue: {
-    textAlign: 'right',
-    fontSize: 16,
-    color: '#2196F3',
-    marginBottom: 5,
   },
   actionContainer: {
     flexDirection: 'row',

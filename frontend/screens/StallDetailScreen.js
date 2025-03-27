@@ -1,21 +1,21 @@
+// StallDetailScreen.js
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
-  Image, 
   ScrollView, 
   TouchableOpacity,
   Linking,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapView, { Marker } from 'react-native-maps';
 import { API_URL } from '../config';
 
-export default function StallDetailScreen({ route }) {
-  const { stallId } = route.params;
+export default function StallDetailScreen({ route, navigation }) {
+  const { stallId, stallName } = route.params;
   const [stall, setStall] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -93,7 +93,6 @@ export default function StallDetailScreen({ route }) {
       <View style={styles.mapContainer}>
         <MapView
           style={styles.map}
-          // provider={PROVIDER_GOOGLE}
           region={{
             latitude: stall.latitude,
             longitude: stall.longitude,
@@ -120,6 +119,17 @@ export default function StallDetailScreen({ route }) {
       {/* Stall Information */}
       <View style={styles.infoContainer}>
         <Text style={styles.stallName}>{stall.name}</Text>
+        
+        {/* Cuisine Type Tag */}
+        <View style={styles.cuisineContainer}>
+          <View style={styles.cuisineTag}>
+            <Text style={styles.cuisineText}>{stall.attributes?.cuisine_type || 'Local'}</Text>
+          </View>
+          <Text style={styles.priceRangeText}>
+            {stall.attributes?.price_range ? `$${stall.attributes.price_range}` : ''}
+          </Text>
+        </View>
+        
         <Text style={styles.description}>{stall.description}</Text>
         
         <View style={styles.detailRow}>
@@ -141,7 +151,7 @@ export default function StallDetailScreen({ route }) {
           <View style={styles.attributeRow}>
             <Text style={styles.attributeLabel}>Price Range:</Text>
             <Text style={styles.attributeValue}>
-              {stall.attributes?.price_range || 'Not specified'}
+              ${stall.attributes?.price_range || 'Not specified'}
             </Text>
           </View>
           
@@ -162,9 +172,30 @@ export default function StallDetailScreen({ route }) {
           )}
         </View>
         
+        {/* HPB Certified Items */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>HPB Certified Items</Text>
+          
+          <View style={styles.hpbItemsContainer}>
+            {stall.attributes?.hpb_certified_items.split(',').map((item, index) => (
+              <View key={index} style={styles.hpbItem}>
+                <Ionicons name="checkmark-circle" size={16} color="#4CAF50" style={styles.itemIcon} />
+                <Text style={styles.hpbItemText}>{item.trim()}</Text>
+              </View>
+            ))}
+          </View>
+          
+          <View style={styles.hpbReasonContainer}>
+            <Text style={styles.hpbReasonTitle}>Why it's healthier:</Text>
+            <Text style={styles.hpbReasonText}>
+              {stall.attributes?.hpb_certification_reason || 'Meets HPB healthier dining guidelines'}
+            </Text>
+          </View>
+        </View>
+        
         {/* HPB Information */}
         <View style={styles.hpbInfo}>
-          <Ionicons name="checkmark-circle" size={20} color="#4CAF50" style={styles.icon} />
+          <Ionicons name="shield-checkmark" size={20} color="#4CAF50" style={styles.icon} />
           <Text style={styles.hpbText}>
             This stall is approved by HPB's Healthier Dining Programme
           </Text>
@@ -240,6 +271,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
   },
+  cuisineContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cuisineTag: {
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  cuisineText: {
+    fontSize: 14,
+    color: '#1976D2',
+  },
+  priceRangeText: {
+    fontSize: 14,
+    color: '#666',
+  },
   description: {
     fontSize: 16,
     color: '#555',
@@ -282,6 +333,36 @@ const styles = StyleSheet.create({
   attributeValue: {
     flex: 1,
     fontSize: 15,
+  },
+  hpbItemsContainer: {
+    marginBottom: 15,
+  },
+  hpbItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  itemIcon: {
+    marginRight: 8,
+  },
+  hpbItemText: {
+    fontSize: 15,
+  },
+  hpbReasonContainer: {
+    backgroundColor: '#F1F8E9',
+    padding: 12,
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  hpbReasonTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#2E7D32',
+  },
+  hpbReasonText: {
+    fontSize: 14,
+    color: '#33691E',
   },
   hpbInfo: {
     flexDirection: 'row',

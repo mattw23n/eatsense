@@ -28,6 +28,8 @@ class StallAttribute(BaseModel):
     cuisine_type: str
     price_range: str
     dietary_requirements: str
+    hpb_certified_items: str
+    hpb_certification_reason: str
     avg_calorie_count: int
 
 class Stall(BaseModel):
@@ -42,6 +44,7 @@ class Stall(BaseModel):
     latitude: float
     longitude: float
     attributes: Optional[StallAttribute] = None
+    distance: Optional[float] = None
 
 # Helper function to calculate distance between two points
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -74,7 +77,8 @@ def get_stalls(
     
     # Build query based on filters
     query = """
-    SELECT s.*, sa.cuisine_type, sa.price_range, sa.dietary_requirements, sa.avg_calorie_count
+    SELECT s.*, sa.cuisine_type, sa.price_range, sa.dietary_requirements, 
+           sa.hpb_certified_items, sa.hpb_certification_reason, sa.avg_calorie_count
     FROM stalls s
     JOIN stall_attributes sa ON s.id = sa.stall_id
     WHERE 1=1
@@ -119,6 +123,8 @@ def get_stalls(
             'cuisine_type': stall_data.pop('cuisine_type'),
             'price_range': stall_data.pop('price_range'),
             'dietary_requirements': stall_data.pop('dietary_requirements'),
+            'hpb_certified_items': stall_data.pop('hpb_certified_items'),
+            'hpb_certification_reason': stall_data.pop('hpb_certification_reason'),
             'avg_calorie_count': stall_data.pop('avg_calorie_count')
         }
         
@@ -138,7 +144,8 @@ def get_stall(stall_id: int):
     
     # Get stall details and attributes
     query = """
-    SELECT s.*, sa.cuisine_type, sa.price_range, sa.dietary_requirements, sa.avg_calorie_count
+    SELECT s.*, sa.cuisine_type, sa.price_range, sa.dietary_requirements,
+           sa.hpb_certified_items, sa.hpb_certification_reason, sa.avg_calorie_count
     FROM stalls s
     JOIN stall_attributes sa ON s.id = sa.stall_id
     WHERE s.id = ?
@@ -156,6 +163,8 @@ def get_stall(stall_id: int):
         'cuisine_type': stall_data.pop('cuisine_type'),
         'price_range': stall_data.pop('price_range'),
         'dietary_requirements': stall_data.pop('dietary_requirements'),
+        'hpb_certified_items': stall_data.pop('hpb_certified_items'),
+        'hpb_certification_reason': stall_data.pop('hpb_certification_reason'),
         'avg_calorie_count': stall_data.pop('avg_calorie_count')
     }
     
@@ -180,15 +189,62 @@ def get_filters():
     ).fetchall()
     
     # Get all distinct dietary requirements
-    dietary_reqs = conn.execute(
-        "SELECT DISTINCT dietary_requirements FROM stall_attributes WHERE dietary_requirements != 'Unknown'"
+    # Since dietary requirements are stored as comma-separated values,
+    # we need to split and extract unique values
+    dietary_reqs_raw = conn.execute(
+        "SELECT dietary_requirements FROM stall_attributes WHERE dietary_requirements != 'Unknown'"
     ).fetchall()
+    
+    # Process dietary requirements to get unique values
+    all_dietary_reqs = []
+    for row in dietary_reqs_raw:
+        if row['dietary_requirements']:
+            reqs = [req.strip() for req in row['dietary_requirements'].split(',')]
+            all_dietary_reqs.extend(reqs)
+    
+    # Get unique dietary requirements
+    unique_dietary_reqs = sorted(set(all_dietary_reqs))
     
     conn.close()
     
     return {
         "cuisine_types": [row['cuisine_type'] for row in cuisine_types],
-        "price_ranges": [row['price_range'] for row in price_ranges],
-        "dietary_requirements": [row['dietary_requirements'] for row in dietary_reqs]
+        "price_ranges": sorted([row['price_range'] for row in price_ranges], 
+                              key=lambda x: float(x.split('-')[0].replace('+', ''))),
+        "dietary_requirements": unique_dietary_reqs
     }
+
+# Add a debug endpoint to verify database data
+@app.get("/debug/database")
+def debug_database():
+    """Return database statistics and sample data for debugging"""
+    conn = get_db_connection()
     
+    # Get total count of stalls
+    stall_count = conn.execute("SELECT COUNT(*) FROM stalls").fetchone()[0]
+    
+    # Get 5 sample stalls with attributes
+    sample_stalls = conn.execute("""
+        SELECT s.id, s.name, s.latitude, s.longitude, 
+               sa.cuisine_type, sa.price_range, sa.dietary_requirements
+        FROM stalls s
+        JOIN stall_attributes sa ON s.id = sa.stall_id
+        LIMIT 5
+    """).fetchall()
+    
+    # Get counts by cuisine type
+    cuisine_counts = conn.execute("""
+        SELECT cuisine_type, COUNT(*) as count 
+        FROM stall_attributes 
+        GROUP BY cuisine_type
+    """).fetchall()
+    
+    conn.close()
+    
+    return {
+        "total_stalls": stall_count,
+        "sample_stalls": [dict(row) for row in sample_stalls],
+        "cuisine_counts": [dict(row) for row in cuisine_counts]
+    }
+
+# Run with: uvicorn main:app --reload
