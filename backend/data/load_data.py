@@ -7,6 +7,7 @@ from datetime import datetime
 import requests
 import os
 from urllib.parse import quote_plus
+import pandas as pd
 
 # Set your Google Maps API key here if you decide to use it
 # GOOGLE_MAPS_API_KEY = "YOUR_API_KEY"
@@ -374,3 +375,53 @@ conn.close()
 
 print("Enhanced data import completed successfully!")
 print("Added enriched data with cuisine types, price ranges, dietary requirements, and HPB certifications.")
+
+# Read the CSV file
+df = pd.read_csv("stall_data.csv", delimiter=",", encoding="ISO-8859-1")
+
+print("Loaded CSV file")
+
+# Remove unnamed column
+if 'Unnamed: 8' in df.columns:
+    # Remove the "Unnamed" column
+    df = df.drop('Unnamed: 8', axis=1)
+
+# Connect to SQLite database (creates it if it doesn't exist)
+conn = sqlite3.connect('hpb_food_stalls.db')
+cursor = conn.cursor()
+
+# Iterate over the DataFrame rows
+for index, row in df.iterrows():
+    # Extract relevant data from the row
+    stall_id = row['id']  # Assuming 'id' is the stall ID
+    cuisine_type = row['cuisine_type']
+    price_range = row['price_range']
+    dietary_requirements = row['dietary_requirements']
+    hpb_certified_items = row['hpb_certified_items']
+    hpb_certification_reason = row['hpb_certification_reason']
+    avg_calorie_count = row['avg_calorie_count']
+
+    # Insert data into stall_attributes table
+    cursor.execute('''
+        INSERT INTO stall_attributes (
+            stall_id, cuisine_type, price_range, dietary_requirements, 
+            hpb_certified_items, hpb_certification_reason, avg_calorie_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        stall_id,
+        cuisine_type,
+        price_range,
+        dietary_requirements,
+        hpb_certified_items,
+        hpb_certification_reason,
+        avg_calorie_count
+    ))
+
+# Commit changes
+conn.commit()
+
+# Close the connection
+conn.close()
+
+print("Enhanced CSV data import completed successfully!")
+print("Added enriched CSV data with cuisine types, price ranges, dietary requirements, and HPB certifications.")
